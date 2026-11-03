@@ -100,9 +100,5 @@ parent terminated child pid:1234
 
 The program successfully demonstrates process creation using fork() and process synchronization using wait() in Linux. The parent process waits until the child process terminates.
 
-## Author
 
-**Vaibhav Salgotra**
-
-B.Tech – Computer Science and Engineering
 
