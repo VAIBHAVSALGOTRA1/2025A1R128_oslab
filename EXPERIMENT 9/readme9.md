@@ -1,343 +1,297 @@
-Process Creation, fork(), and Child
-Synchronization
+# LINUX LAB – EXPERIMENT 9
 
-A step-by-step lecture guide to understanding PIDs, process cloning, return values,
-and waiting for child termination.
+## Process Creation, fork() and Child Synchronization
 
-OPERATING SYSTEMS CONCEPTS IN C
+### 1. Aim
 
-STEP 1 • FUNDAMENTALS
+To understand process creation using the `fork()` system call, identify parent and child processes using PIDs, and synchronize their execution using the `wait()` system call in C.
 
-What is a Process and PID?
+### 2. Objectives
 
-Every running program in an Operating System is called a
-process. The OS assigns each process a unique numerical
-identifier: the PID.
+* Understand processes and Process IDs (PIDs).
+* Study `getpid()` and `getppid()`.
+* Understand process creation using `fork()`.
+* Learn the return values of `fork()`.
+* Understand parent-child process relationships.
+* Synchronize processes using `wait()`.
 
-#
+### 3. Theory
 
-Like a Student Roll Number
+**Process:** A process is a program currently being executed by the operating system.
 
-Uniquely identifies execution context within kernel process tables.
+**PID:** A Process ID is a unique numerical identifier assigned to a process.
 
-()
+**getpid():** Returns the PID of the current process.
 
-getpid() & getppid()
+**getppid():** Returns the PID of the parent process.
 
-Standard POSIX calls to query own PID or parent process PID.
+**fork():** Creates a new child process by duplicating the calling process.
 
-pid_demo.c
+### 4. Understanding fork()
 
+The `fork()` system call creates a new child process.
+
+Syntax:
+
+```c
+pid_t p = fork();
+```
+
+Return values:
+
+| Return Value   | Meaning                                           |
+| -------------- | ------------------------------------------------- |
+| `0`            | Returned to the child process.                    |
+| Positive value | Returned to the parent; contains the child's PID. |
+| `-1`           | Process creation failed.                          |
+
+After `fork()`, both parent and child continue execution independently from the point where `fork()` was called.
+
+### 5. Program 1 – Display Process ID
+
+Create a file named `pid_demo.c`.
+
+```c
 #include <stdio.h>
-
 #include <unistd.h>
 
-int main() {
+int main()
+{
+    printf("Current PID: %d\n", getpid());
 
-printf("Current PID: %d\n", getpid());
-
-return 0;
-
+    return 0;
 }
+```
 
-TERMINAL OUTPUT
+**Compile and execute:**
 
-$ gcc pid_demo.c -o pid_demo
-
+```bash
+gcc pid_demo.c -o pid_demo
 ./pid_demo
+```
 
+**Sample Output:**
+
+```text
 Current PID: 4092
+```
 
-STEP 2 • CONCEPTUAL ANALOGY
+The PID will be different on your system.
 
-How fork() Works: The Photocopy Analogy
+### 6. Program 2 – Process Creation Using fork()
 
-Instant Exact Clone
+Create a file named `fork_demo.c`.
 
-Like running a notebook through a photocopy
-machine, creating an identical copy of code and
-memory.
-
-Called Once, Returns Twice
-
-A single function call produces two separate
-execution threads continuing from the exact
-same instruction.
-
-Different Return Badges
-
-The only immediate difference between parent
-and child is what value fork() places into their
-variables.
-
-KEY INSIGHT
-
-Both processes start with identical code
-segment, stack, heap, and register states at
-time of fork().
-
-KEY INSIGHT
-
-Execution continues concurrently right after
-the fork() call, rather than re-starting main().
-
-KEY INSIGHT
-
-Parent gets Child PID (>0) to monitor/wait for
-it; Child gets 0 to recognize it is the new
-process.
-
-CORE CONCEPT
-
-Why Does Child Receive 0 in Variable `p`?
-
-CHILD PROCESS
-
-p = 0
-
-0 is a Role Badge, NOT the Real PID
-
-The child already has its own unique PID (e.g. 5042). It receives 0
-purely as a signal to acknowledge:
-
-"I am the newly spawned child."
-
-Child can always check its PID via getpid() and parent via getppid().
-
-PARENT PROCESS
-
-p = Child_PID (e.g. 5042)
-
-Parent Needs the Child's Handle
-
-A parent process can spawn multiple children.
-
-There is no simple API like getchildpid(), so fork() explicitly gives the
-child's exact PID to the parent.
-
-Essential for monitoring, signaling, and calling wait().
-
-Stack
-
-Heap
-
-Registers
-
-Stack Copy
-
-Heap Copy
-
-Registers
-
-ARCHITECTURE
-
-Separate Memory Spaces After fork()
-
-Parent Process Running (Original PID: 4000) • pid_t p = fork();
-
-Parent Memory Space
-
-Own copies of stack, heap, and registers.
-
-Variable p = 4001
-
-Condition (p == 0) is FALSE
-
-Child Memory Space
-
-Independent duplicate of stack, heap, and registers.
-
-Variable p = 0
-
-Condition (p == 0) is TRUE
-
-STEP 3 • PROCESS SYNCHRONIZATION
-
-How to Use wait() in C
-
-Synchronizing parent and child processes to prevent race conditions, reap exit status, and ensure clean lifecycle termination.
-
-WHY wait() IS NEEDED
-
-Race Conditions: OS scheduler order is
-nondeterministic without synchronization.
-
-Scrambled Output: Shell prompt returns before
-child finishes printing to terminal.
-
-Orphan Processes: Parent exits first, abandoning
-child to be adopted by init/systemd (PID 1).
-
-Zombie Processes: Terminated child lingers dead
-in kernel table until parent collects status.
-
-wait_pattern.c — Basic Implementation
-
-#include <sys/wait.h> // Defines wait()
-
-#include <unistd.h> // Defines fork()
-
-pid_t p = fork();
-
-if (p == 0) { // 1. CHILD PROCESS
-
-printf("Child working...\n");
-
-exit(0); // 2. Normal exit status 0
-
-} else { // 3. PARENT PROCESS
-
-pid_t child_pid = wait(NULL);
-
-printf("Child %d reaped successfully!\n", child_pid);
-
-KEY IMPLEMENTATION TAKEAWAY: wait(NULL)
-
-Passing NULL tells the kernel to block and reap the child process without
-storing detailed exit status information in an integer pointer.
-
-STEP 3 • PROCESS SYNCHRONIZATION
-
-How to Use wait() in C
-
-Synchronizing parent and child processes to prevent race conditions, reap exit status, and ensure clean lifecycle termination.
-
-HOW wait() WORKS
-
-Required Headers: #include <sys/wait.h>
-
-Blocks the Parent: Suspends parent execution until
-any child process terminates.
-
-Reaps Process State: Collects child exit status and
-deallocates it from kernel process table.
-
-Returns Child PID: Returns PID of terminated child,
-or -1 if no un-waited children exist.
-
-wait_pattern.c — Basic Implementation
-
-#include <sys/wait.h> // Defines wait()
-
-#include <unistd.h> // Defines fork()
-
-pid_t p = fork();
-
-if (p == 0) {
-
-printf("Child working...\n");
-
-exit(0);
-
-} else {
-
-pid_t child_pid = wait(NULL);
-
-printf("Child %d reaped successfully!\n", child_pid);
-
-KEY IMPLEMENTATION TAKEAWAY: wait(NULL)
-
-Passing NULL tells the kernel to block and reap the child process without
-storing detailed exit status information in an integer pointer.
-
-main.c — Complete C Implementation
-
-IMPLEMENTATION
-
-Complete Classroom Program in C
-
+```c
 #include <stdio.h>
-
+#include <unistd.h>
 #include <stdlib.h>
 
-#include <unistd.h>
+int main()
+{
+    pid_t p = fork();
 
+    if (p == 0)
+    {
+        printf("Child Process\n");
+        printf("Child PID: %d\n", getpid());
+        printf("Parent PID: %d\n", getppid());
+    }
+    else if (p > 0)
+    {
+        printf("Parent Process\n");
+        printf("Parent PID: %d\n", getpid());
+        printf("Child PID: %d\n", p);
+    }
+    else
+    {
+        printf("Fork failed!\n");
+        return 1;
+    }
+
+    return 0;
+}
+```
+
+**Compile and execute:**
+
+```bash
+gcc fork_demo.c -o fork_demo
+./fork_demo
+```
+
+**Sample Output:**
+
+```text
+Parent Process
+Parent PID: 4000
+Child PID: 4001
+Child Process
+Child PID: 4001
+Parent PID: 4000
+```
+
+*Note: The output order may change because the operating system scheduler decides which process executes first.*
+
+### 7. Program 3 – Parent and Child Synchronization Using wait()
+
+Create a file named `wait_pattern.c`.
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/wait.h>
 
-int main() {
+int main()
+{
+    pid_t p = fork();
 
-pid_t p = fork();
+    if (p == 0)
+    {
+        printf("Child working...\n");
+        sleep(2);
+        printf("Child exiting...\n");
+        exit(0);
+    }
+    else if (p > 0)
+    {
+        pid_t child_pid = wait(NULL);
+        printf("Child %d reaped successfully!\n", child_pid);
+    }
+    else
+    {
+        printf("Fork failed!\n");
+        return 1;
+    }
 
-if (p == 0) {
-
-printf("Child Running with PID: %d\n", getpid());
-
-sleep(2); // Simulate work
-
-printf("Child Exiting...\n");
-
-exit(0);
-
+    return 0;
 }
+```
 
-else {
+**Compile and execute:**
 
-printf("Parent Waiting for child to terminate...\n");
+```bash
+gcc wait_pattern.c -o wait_pattern
+./wait_pattern
+```
 
-pid_t terminated_pid = wait(NULL);
+**Sample Output:**
 
-printf("Parent Terminated Child PID: %d\n", terminated_pid);
+```text
+Child working...
+Child exiting...
+Child 5042 reaped successfully!
+```
 
+### 8. Program 4 – Complete Process Creation and Synchronization
+
+Create a file named `main.c`.
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+int main()
+{
+    pid_t p = fork();
+
+    if (p == 0)
+    {
+        printf("Child Running with PID: %d\n", getpid());
+
+        sleep(2);
+
+        printf("Child Exiting...\n");
+
+        exit(0);
+    }
+    else if (p > 0)
+    {
+        printf("Parent Waiting for child to terminate...\n");
+
+        pid_t terminated_pid = wait(NULL);
+
+        printf("Parent Terminated Child PID: %d\n", terminated_pid);
+    }
+    else
+    {
+        printf("Fork failed!\n");
+        return 1;
+    }
+
+    return 0;
 }
+```
 
-return 0;
+**Compile and execute:**
 
-}
+```bash
+gcc main.c -o main
+./main
+```
 
-REFERENCE
+**Sample Output:**
 
-System Calls Quick Reference
+```text
+Parent Waiting for child to terminate...
+Child Running with PID: 5042
+Child Exiting...
+Parent Terminated Child PID: 5042
+```
 
-fork()
+### 9. Understanding wait()
 
-HEADER FILE
+The `wait()` system call is used by the parent process to wait for a child process to finish.
 
-<unistd.h>
+Syntax:
 
-PRIMARY PURPOSE
+```c
+wait(NULL);
+```
 
-Clones calling process
+Important points:
 
-RETURN VALUE
+* Suspends the parent until a child terminates.
+* Collects the child's termination status.
+* Reaps the terminated child process.
+* Returns the PID of the terminated child.
+* Returns `-1` if no unwaited child is available or an error occurs.
 
-0 to child, PID to parent
+Passing `NULL` means that the program does not store the child's detailed exit status.
 
-getpid()
+### 10. Important System Calls
 
-HEADER FILE
+| Function    | Header File    | Purpose                                  |
+| ----------- | -------------- | ---------------------------------------- |
+| `fork()`    | `<unistd.h>`   | Creates a child process.                 |
+| `getpid()`  | `<unistd.h>`   | Returns the current process ID.          |
+| `getppid()` | `<unistd.h>`   | Returns the parent process ID.           |
+| `wait()`    | `<sys/wait.h>` | Waits for a child process to terminate.  |
+| `sleep()`   | `<unistd.h>`   | Suspends execution for a specified time. |
+| `exit()`    | `<stdlib.h>`   | Terminates the calling process.          |
 
-<unistd.h>
+### 11. Parent vs Child Process
 
-PRIMARY PURPOSE
+| Feature             | Parent Process         | Child Process                           |
+| ------------------- | ---------------------- | --------------------------------------- |
+| Creation            | Existing process       | Created using `fork()`.                 |
+| fork() return value | Child PID              | 0                                       |
+| PID                 | Its own PID            | A new PID                               |
+| getppid()           | Its parent's PID       | Parent's PID                            |
+| Execution           | Continues after fork() | Continues after fork()                  |
+| wait()              | Can wait for child     | Does not wait for parent using `wait()` |
 
-Gets own process ID
+### 12. Precautions
 
-RETURN VALUE
+* Include the required header files.
+* Always check whether `fork()` was successful.
+* Use `wait()` to collect the child's termination status.
+* Remember that parent and child execution order is not fixed without synchronization.
+* Use separate terminal executions for each program.
 
-Current process PID
+### 13. Result
 
-getppid()
-
-HEADER FILE
-
-<unistd.h>
-
-PRIMARY PURPOSE
-
-Gets parent process ID
-
-RETURN VALUE
-
-Parent process PID
-
-wait()
-
-HEADER FILE
-
-<sys/wait.h>
-
-PRIMARY PURPOSE
-
-Waits for child exit
-
-RETURN VALUE
+Successfully studied process creation using `fork()`, identified parent and child processes using `getpid()` and `getppid()`, and synchronized parent-child execution using the `wait()` system call.
